@@ -3,12 +3,14 @@ usingnamespace @import("../_imports.zig");
 usingnamespace @import("common.zig");
 usingnamespace @import("operators.zig");
 usingnamespace @import("casts.zig");
+usingnamespace @import("affine.zig");
 
 fn mixin(comptime Self: type) type {
     return struct {
         pub usingnamespace common(Self);
         pub usingnamespace operators(Self);
         pub usingnamespace casts(Self);
+        pub usingnamespace affine(Self);
     };
 }
 

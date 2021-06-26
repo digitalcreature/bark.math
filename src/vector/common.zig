@@ -72,19 +72,19 @@ pub fn common(comptime Self: type) type {
         pub fn swizzle(self: Self, comptime swizzle_string: []const u8) Swizzle(swizzle_string) {
             var result: [swizzle_string.len]Scalar = undefined;
             inline for (swizzle_string) |specifier, i| {
-                result[i] = switch (specifier) {
-                    '0' => 0,
-                    '1' => 1,
-                    else => getval: {
+                switch (specifier) {
+                    '0' => result[i] = 0,
+                    '1' => result[i] = 1,
+                    else => {
                         const name: []const u8 = &.{specifier};
                         if (@hasField(Axis, name)) {
-                            break :getval self.get(@field(Axis, name));
+                            result[i] = self.get(@field(Axis, name));
                         }
                         else {
                             compileError("invalid swizzle specifier '{s}'", .{name});
                         }
                     },
-                };
+                }
             }
             return Swizzle(swizzle_string).fromArray(result);
         }
