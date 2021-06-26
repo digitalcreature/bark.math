@@ -2,7 +2,7 @@ pub const meta = @import("meta.zig");
 
 pub const scalar = @import("scalar.zig");
 pub const vector = @import("vector.zig");
-pub const matrix = @import("vector.zig");
+pub const matrix = @import("matrix.zig");
 
 pub const glsl = struct {
     pub usingnamespace scalar.glsl;
