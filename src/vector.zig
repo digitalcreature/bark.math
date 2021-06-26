@@ -64,7 +64,7 @@ fn VectorMixin(comptime Self: type) type  {
         }
 
         pub fn TargetVector(comptime Target: type) type {
-            switch (NumberInfo.fromTypeAssert(Target)) {
+            switch (TypeInfo.fromTypeAssert(Target)) {
                 .Scalar => return Vector(Target, dimensions),
                 .Vector => |info| {
                     info.assertDimensions(dimensions);
@@ -74,7 +74,7 @@ fn VectorMixin(comptime Self: type) type  {
         }
 
         pub fn TargetScalar(comptime Target: type) type {
-            switch (NumberInfo.fromTypeAssert(Target)) {
+            switch (TypeInfo.fromTypeAssert(Target)) {
                 .Scalar => return Target,
                 .Vector => |info| {
                     info.assertDimensions(dimensions);
@@ -148,6 +148,33 @@ fn VectorMixin(comptime Self: type) type  {
             @field(self, self_info.field_names[comptime axis.toIndex()]) = value;
         }
 
+        pub fn Swizzle(comptime fmt: []const u8) type {
+            return switch (fmt.len) {
+                2, 3, 4 => Vector(Scalar, fmt.len),
+                else => errorUnsupportedDimensionCount(fmt.len),
+            };
+        }
+
+        pub fn swizzle(self: Self, comptime fmt: []const u8) Swizzle(fmt) {
+            var result: [fmt.len]Scalar = undefined;
+            inline for (fmt) |specifier, i| {
+                result[i] = switch (specifier) {
+                    '0' => 0,
+                    '1' => 1,
+                    else => getval: {
+                        const name: []const u8 = &.{specifier};
+                        if (@hasField(Axis, name)) {
+                            break :getval self.get(@field(Axis, name));
+                        }
+                        else {
+                            compileError("invalid swizzle specifier '{s}'", .{name});
+                        }
+                    },
+                };
+            }
+            return Swizzle(fmt).fromArray(result);
+        }
+
         // univerasal ops
         pub fn add(lhs: Self, rhs: Self) Self { return utils.doBinaryOp(lhs, rhs, scalar_ops.add); }
         pub fn sub(lhs: Self, rhs: Self) Self { return utils.doBinaryOp(lhs, rhs, scalar_ops.sub); }
@@ -159,17 +186,16 @@ fn VectorMixin(comptime Self: type) type  {
         pub fn sum(self: Self) Scalar { return utils.doFold(0, scalar_ops.add); }
         pub fn product(self: Self) Scalar { return utils.doFold(1, scalar_ops.mul); }
 
-        pub fn len2(self: Self) Scalar {
-            var result: Scalar = 0;
-            inline for (Axis.values) |axis| {
-                const x = self.get(axis);
-                result += x * x;
-            }
-            return result;
+        pub fn scale(lhs: Self, rhs: Scalar) Self {
+            return self.mul(common.fill(rhs));
         }
 
         pub fn dot(lhs: Self, rhs: Self) Scalar {
             return self.mul(rhs).sum();
+        }
+
+        pub fn len2(self: Self) Scalar {
+            return self.dot(self);
         }
 
         // casts
@@ -323,19 +349,27 @@ fn VectorMixin(comptime Self: type) type  {
                 return @sqrt(self.len2());
             }
 
-            pub fn normalize(self: Self) Self {
+            pub fn normalize(self: Self) ?Self {
                 const l = self.len();
                 if (len != 0.0) {
-                    return self.mul(common.fill(1.0 / l));
+                    return self.scale(1.0 / l);
                 }
                 else {
-                    return common.zero;
+                    return null;
                 }
+            }
+
+            pub fn normalizeAssumeNonZero(self: Self) Self {
+                const l = self.len();
+                if (std.debug.runtime_safety and l == 0) {
+                    std.debug.panic("attempt to normalize zero vector {d}", .{self});
+                }
+                return self.scale(1.0 / l);
             }
 
             pub fn project(lhs: Self, rhs: Self) Self {
                 const ratio = lhs.dot(rhs) / rhs.dot(rhs);
-                return rhs.mul(common.fill(ratio));
+                return rhs.scale(ratio);
             }
 
             pub fn reject(lhs: Self, rhs: Self) Self {
@@ -375,6 +409,8 @@ fn VectorMixin(comptime Self: type) type  {
 }
 
 pub fn Vector(comptime Scalar: type, comptime dimensions: usize) type {
+    _ = ScalarInfo.fromTypeAssert(Scalar);
+
     return switch (dimensions) {
         2 => extern struct {
 

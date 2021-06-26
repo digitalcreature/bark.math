@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = @import("assert.zig");
 
-const TypeInfo = std.builtin.TypeInfo;
+const builtin = std.builtin;
 
 pub const Signedness = std.builtin.Signedness;
 
@@ -73,7 +73,7 @@ pub const ScalarInfo = struct {
     }
 
     fn toType(comptime self: Self) type {
-        const info: TypeInfo = switch (self.kind) {
+        const info: builtin.TypeInfo = switch (self.kind) {
             .signed_int => .{
                 .Int = .{
                     .signedness = .signed,
@@ -224,20 +224,20 @@ pub const VectorInfo = struct {
 
 };
 
-pub const NumberInfo = union(enum) {
+pub const TypeInfo = union(enum) {
     
     Scalar: ScalarInfo,
     Vector: VectorInfo,
 
     const Self = @This();
 
-    pub fn fromType(comptime Number: type) ?Self {
-        return if (ScalarInfo.fromType(Number)) |info| (
+    pub fn fromType(comptime Type: type) ?Self {
+        return if (ScalarInfo.fromType(Type)) |info| (
             Self {
                 .Scalar = info,
             }
         )
-        else if (VectorInfo.fromType(Number)) |info| (
+        else if (VectorInfo.fromType(Type)) |info| (
             Self {
                 .Vector = info,
             }
@@ -245,13 +245,13 @@ pub const NumberInfo = union(enum) {
         else null;
     }
 
-    pub fn fromTypeAssert(comptime Number: type) Self {
-        return fromType(Number) orelse (
-            compileErrorExpected(Number, "number", .{})
+    pub fn fromTypeAssert(comptime Type: type) Self {
+        return fromType(Type) orelse (
+            compileErrorExpected(Type, "math type", .{})
         );
     }
 
-    pub fn numberType(comptime self: Self) type {
+    pub fn typeType(comptime self: Self) type {
         return switch (self) {
             .Scalar => |info| info.scalar_type,
             .Vector => |info| info.vector_type,
