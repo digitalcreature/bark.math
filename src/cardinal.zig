@@ -121,7 +121,7 @@ pub fn Cardinal(comptime dimensions: usize) type {
 
             pub usingnamespace CardinalMixin(@This());
         },
-        else => errorUnsupportedDimensionCount(dimensions),
+        else => errorDimensionCountUnsupported(dimensions),
     };
 }
 
@@ -148,7 +148,7 @@ pub fn Axis(comptime dimensions: usize) type {
 
             pub usingnamespace AxisMixin(@This());
         },
-        else => errorUnsupportedDimensionCount(dimensions),
+        else => errorDimensionCountUnsupported(dimensions),
     };
 }
 

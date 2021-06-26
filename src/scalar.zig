@@ -120,3 +120,25 @@ pub fn truncate(comptime Target: type, value: anytype) Target {
     ScalarInfo.fromTypeAssert(Target).assertInteger();
     return @truncate(Target, value);
 }
+
+pub const glsl = struct {
+
+    pub const int = i32;
+    pub const uint = u32;
+
+    pub const float = f32;
+    pub const double = f64;
+
+};
+
+pub const hlsl = struct {
+
+    pub const int = i32;
+    pub const uint = u32;
+    pub const dword = u32;
+
+    pub const half = f16;
+    pub const float = f32;
+    pub const double = f64;
+
+};

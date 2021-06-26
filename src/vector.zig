@@ -69,7 +69,10 @@ fn VectorMixin(comptime Self: type) type  {
                 .Vector => |info| {
                     info.assertDimensions(dimensions);
                     return Target;
-                }
+                },
+                .Matrix => |info| {
+                    compileError("cannot derive target vector type from matrix type {s}", .{@typeName(info.matrix_type)});
+                },
             }
         }
 
@@ -79,7 +82,10 @@ fn VectorMixin(comptime Self: type) type  {
                 .Vector => |info| {
                     info.assertDimensions(dimensions);
                     return info.scalar_type;
-                }
+                },
+                .Matrix => |info| {
+                    compileError("cannot derive target vector type from matrix type {s}", .{@typeName(info.matrix_type)});
+                },
             }
         }
 
@@ -151,7 +157,7 @@ fn VectorMixin(comptime Self: type) type  {
         pub fn Swizzle(comptime fmt: []const u8) type {
             return switch (fmt.len) {
                 2, 3, 4 => Vector(Scalar, fmt.len),
-                else => errorUnsupportedDimensionCount(fmt.len),
+                else => errorDimensionCountUnsupported(fmt.len),
             };
         }
 
@@ -436,61 +442,61 @@ pub fn Vector(comptime Scalar: type, comptime dimensions: usize) type {
 
             pub usingnamespace VectorMixin(@This());
         },
-        else => errorUnsupportedDimensionCount(dimensions),
+        else => errorDimensionCountUnsupported(dimensions),
     };
 }
 
-pub const i8v2 = Vector(i8, 2);
-pub const i8v3 = Vector(i8, 3);
-pub const i8v4 = Vector(i8, 4);
+pub const i8_2 = Vector(i8, 2);
+pub const i8_3 = Vector(i8, 3);
+pub const i8_4 = Vector(i8, 4);
 
-pub const i16v2 = Vector(i16, 2);
-pub const i16v3 = Vector(i16, 3);
-pub const i16v4 = Vector(i16, 4);
+pub const i16_2 = Vector(i16, 2);
+pub const i16_3 = Vector(i16, 3);
+pub const i16_4 = Vector(i16, 4);
 
-pub const i32v2 = Vector(i32, 2);
-pub const i32v3 = Vector(i32, 3);
-pub const i32v4 = Vector(i32, 4);
+pub const i32_2 = Vector(i32, 2);
+pub const i32_3 = Vector(i32, 3);
+pub const i32_4 = Vector(i32, 4);
 
-pub const i64v2 = Vector(i64, 2);
-pub const i64v3 = Vector(i64, 3);
-pub const i64v4 = Vector(i64, 4);
+pub const i64_2 = Vector(i64, 2);
+pub const i64_3 = Vector(i64, 3);
+pub const i64_4 = Vector(i64, 4);
 
-pub const isizev2 = Vector(isize, 2);
-pub const isizev3 = Vector(isize, 3);
-pub const isizev4 = Vector(isize, 4);
+pub const isize_2 = Vector(isize, 2);
+pub const isize_3 = Vector(isize, 3);
+pub const isize_4 = Vector(isize, 4);
 
-pub const u8v2 = Vector(u8, 2);
-pub const u8v3 = Vector(u8, 3);
-pub const u8v4 = Vector(u8, 4);
+pub const u8_2 = Vector(u8, 2);
+pub const u8_3 = Vector(u8, 3);
+pub const u8_4 = Vector(u8, 4);
 
-pub const u16v2 = Vector(u16, 2);
-pub const u16v3 = Vector(u16, 3);
-pub const u16v4 = Vector(u16, 4);
+pub const u16_2 = Vector(u16, 2);
+pub const u16_3 = Vector(u16, 3);
+pub const u16_4 = Vector(u16, 4);
 
-pub const u32v2 = Vector(u32, 2);
-pub const u32v3 = Vector(u32, 3);
-pub const u32v4 = Vector(u32, 4);
+pub const u32_2 = Vector(u32, 2);
+pub const u32_3 = Vector(u32, 3);
+pub const u32_4 = Vector(u32, 4);
 
-pub const u64v2 = Vector(u64, 2);
-pub const u64v3 = Vector(u64, 3);
-pub const u64v4 = Vector(u64, 4);
+pub const u64_2 = Vector(u64, 2);
+pub const u64_3 = Vector(u64, 3);
+pub const u64_4 = Vector(u64, 4);
 
-pub const usizev2 = Vector(usize, 2);
-pub const usizev3 = Vector(usize, 3);
-pub const usizev4 = Vector(usize, 4);
+pub const usize_2 = Vector(usize, 2);
+pub const usize_3 = Vector(usize, 3);
+pub const usize_4 = Vector(usize, 4);
 
-pub const f16v2 = Vector(f16, 2);
-pub const f16v3 = Vector(f16, 3);
-pub const f16v4 = Vector(f16, 4);
+pub const f16_2 = Vector(f16, 2);
+pub const f16_3 = Vector(f16, 3);
+pub const f16_4 = Vector(f16, 4);
 
-pub const f32v2 = Vector(f32, 2);
-pub const f32v3 = Vector(f32, 3);
-pub const f32v4 = Vector(f32, 4);
+pub const f32_2 = Vector(f32, 2);
+pub const f32_3 = Vector(f32, 3);
+pub const f32_4 = Vector(f32, 4);
 
-pub const f64v2 = Vector(f64, 2);
-pub const f64v3 = Vector(f64, 3);
-pub const f64v4 = Vector(f64, 4);
+pub const f64_2 = Vector(f64, 2);
+pub const f64_3 = Vector(f64, 3);
+pub const f64_4 = Vector(f64, 4);
 
 pub const glsl = struct {
 
@@ -537,12 +543,12 @@ pub const hlsl = struct {
 };
 
 test "vector casts" {
-    const vec_i32 = i32v3.init(0, 1, 2);
+    const vec_i32 = i32_3.init(0, 1, 2);
     const vec_f32_by_scalar = vec_i32.intToFloat(f32);
     try std.testing.expectEqual(@as(f32, 0), vec_f32_by_scalar.x);
     try std.testing.expectEqual(@as(f32, 1), vec_f32_by_scalar.y);
     try std.testing.expectEqual(@as(f32, 2), vec_f32_by_scalar.z);
-    const vec_f32_by_vector = vec_i32.intToFloat(f32v3);
+    const vec_f32_by_vector = vec_i32.intToFloat(f32_3);
     try std.testing.expectEqual(@as(f32, 0), vec_f32_by_vector.x);
     try std.testing.expectEqual(@as(f32, 1), vec_f32_by_vector.y);
     try std.testing.expectEqual(@as(f32, 2), vec_f32_by_vector.z);
