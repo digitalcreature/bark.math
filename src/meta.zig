@@ -196,7 +196,7 @@ pub const VectorInfo = struct {
         );
     }
 
-    pub fn isSimilar(self: Self, other: Self) bool {
+    pub fn isSimilar(comptime self: Self, other: Self) bool {
         return (
             (self.dimensions == other.dimensions)
             and (self.scalar_type == other.scalar_type)
@@ -244,7 +244,7 @@ pub const MatrixInfo = struct {
                     const fields = info.fields;
                     if (fields.len != 1) return null;
                     const field = fields[0];
-                    if (!std.mem.eql(u8, fields.name, "fields")) return null;
+                    if (!std.mem.eql(u8, field.name, "fields")) return null;
                     if (field.is_comptime) return null;
                     break :get_fields field.field_type;
                 },
@@ -255,7 +255,7 @@ pub const MatrixInfo = struct {
             const Row = switch (@typeInfo(Fields)) {
                 .Array => |info| get_row: {
                     row_count = info.len;
-                    if (info.sentinal) |_| return null;
+                    if (info.sentinel) |_| return null;
                     break :get_row info.child;
                 },
                 else => return null,
@@ -263,8 +263,8 @@ pub const MatrixInfo = struct {
             const Scalar = switch (@typeInfo(Row)) {
                 .Array => |info| get_scalar: {
                     col_count = info.len;
-                    if (info.sentinal) |_| return null;
-                    break :get_scalar info.chils;
+                    if (info.sentinel) |_| return null;
+                    break :get_scalar info.child;
                 },
                 else => return null,
             };
@@ -385,7 +385,7 @@ pub const TypeInfo = union(enum) {
         };
     }
 
-    pub fn elementCount(self: Self) usize {
+    pub fn elementCount(comptime self: Self) usize {
         return switch (self) {
             .Scalar => 1,
             .Vector => |info| info.dimensions,

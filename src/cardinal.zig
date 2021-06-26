@@ -29,14 +29,15 @@ fn CommonMixin(comptime Self: type) type {
     return struct {
 
         pub const values = std.enums.values(Self);
-        pub const dimensions = values.len;
+
+        const Tag = @typeInfo(Self).Enum.tag_type;
 
         pub fn toIndex(self: Self) usize {
             return @enumToInt(self);
         }
 
         pub fn fromIndex(value: usize) Self {
-            return @intToEnum(Self, value);
+            return @intToEnum(Self, @truncate(Tag, value));
         }
 
     };
@@ -48,6 +49,7 @@ fn AxisMixin(comptime Self: type) type {
     return struct {
 
         pub usingnamespace CommonMixin(Self);
+        pub const dimensions = values.len;
 
         pub fn relativeAxis(self: Self, relative: Self) Self {
             const int = (self.toIndex() + relative.toIndex()) % dimensions;
@@ -62,10 +64,11 @@ fn CardinalMixin(comptime Self: type) type {
     return struct {
 
         pub usingnamespace CommonMixin(Self);
+        pub const dimensions = values.len / 2;
 
-        pub fn init(axis: Axis(dimensions), sign: Sign) Self {
-            const offset: usize = @enumToInt(sign) * dimensions;
-            return fromIndex(axis.toIndex() + offset);
+        pub fn init(a: Axis(dimensions), s: Sign) Self {
+            const offset: usize = @enumToInt(s) * dimensions;
+            return fromIndex(a.toIndex() + offset);
         }
 
         pub fn axis(self: Self) Axis(dimensions) {
@@ -74,7 +77,7 @@ fn CardinalMixin(comptime Self: type) type {
         }
 
         pub fn sign(self: Self) Sign {
-            return @intToEnum(Sign, self.toIndex() / dimensions);
+            return @intToEnum(Sign, @truncate(u1, self.toIndex() / dimensions));
         }
 
         pub fn inverted(self: Self) Self {

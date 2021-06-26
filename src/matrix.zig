@@ -1,5 +1,6 @@
 usingnamespace @import("_imports.zig");
 
+const Vector = @import("vector.zig").Vector;
 const cardinal = @import("cardinal.zig");
 
 fn MatrixMixin(comptime Self: type) type {
@@ -20,7 +21,6 @@ fn MatrixMixin(comptime Self: type) type {
     const ColAxis = cardinal.Axis(col_count);
 
     const Transpose = Matrix(Scalar, col_count, row_count);
-    const Product = utils.Product;
 
     const utils = struct {
 
@@ -50,6 +50,8 @@ fn MatrixMixin(comptime Self: type) type {
         }
 
     };
+    
+    const Product = utils.Product;
 
     const common = struct {
 
@@ -359,62 +361,65 @@ pub fn Matrix(comptime Scalar: type, comptime row_count: usize, col_count: usize
 
 }
 
-pub const f16_2x2 = MatrixInfo(f16, 2, 2);
-pub const f16_2x3 = MatrixInfo(f16, 2, 3);
-pub const f16_2x4 = MatrixInfo(f16, 2, 4);
-pub const f16_3x2 = MatrixInfo(f16, 3, 2);
-pub const f16_3x3 = MatrixInfo(f16, 3, 3);
-pub const f16_3x4 = MatrixInfo(f16, 3, 4);
-pub const f16_4x2 = MatrixInfo(f16, 4, 2);
-pub const f16_4x3 = MatrixInfo(f16, 4, 3);
-pub const f16_4x4 = MatrixInfo(f16, 4, 4);
+pub const types = struct {
 
-pub const f32_2x2 = MatrixInfo(f32, 2, 2);
-pub const f32_2x3 = MatrixInfo(f32, 2, 3);
-pub const f32_2x4 = MatrixInfo(f32, 2, 4);
-pub const f32_3x2 = MatrixInfo(f32, 3, 2);
-pub const f32_3x3 = MatrixInfo(f32, 3, 3);
-pub const f32_3x4 = MatrixInfo(f32, 3, 4);
-pub const f32_4x2 = MatrixInfo(f32, 4, 2);
-pub const f32_4x3 = MatrixInfo(f32, 4, 3);
-pub const f32_4x4 = MatrixInfo(f32, 4, 4);
+    pub const f16_2x2 = Matrix(f16, 2, 2);
+    pub const f16_2x3 = Matrix(f16, 2, 3);
+    pub const f16_2x4 = Matrix(f16, 2, 4);
+    pub const f16_3x2 = Matrix(f16, 3, 2);
+    pub const f16_3x3 = Matrix(f16, 3, 3);
+    pub const f16_3x4 = Matrix(f16, 3, 4);
+    pub const f16_4x2 = Matrix(f16, 4, 2);
+    pub const f16_4x3 = Matrix(f16, 4, 3);
+    pub const f16_4x4 = Matrix(f16, 4, 4);
 
-pub const f64_2x2 = MatrixInfo(f64, 2, 2);
-pub const f64_2x3 = MatrixInfo(f64, 2, 3);
-pub const f64_2x4 = MatrixInfo(f64, 2, 4);
-pub const f64_3x2 = MatrixInfo(f64, 3, 2);
-pub const f64_3x3 = MatrixInfo(f64, 3, 3);
-pub const f64_3x4 = MatrixInfo(f64, 3, 4);
-pub const f64_4x2 = MatrixInfo(f64, 4, 2);
-pub const f64_4x3 = MatrixInfo(f64, 4, 3);
-pub const f64_4x4 = MatrixInfo(f64, 4, 4);
+    pub const f32_2x2 = Matrix(f32, 2, 2);
+    pub const f32_2x3 = Matrix(f32, 2, 3);
+    pub const f32_2x4 = Matrix(f32, 2, 4);
+    pub const f32_3x2 = Matrix(f32, 3, 2);
+    pub const f32_3x3 = Matrix(f32, 3, 3);
+    pub const f32_3x4 = Matrix(f32, 3, 4);
+    pub const f32_4x2 = Matrix(f32, 4, 2);
+    pub const f32_4x3 = Matrix(f32, 4, 3);
+    pub const f32_4x4 = Matrix(f32, 4, 4);
 
+    pub const f64_2x2 = Matrix(f64, 2, 2);
+    pub const f64_2x3 = Matrix(f64, 2, 3);
+    pub const f64_2x4 = Matrix(f64, 2, 4);
+    pub const f64_3x2 = Matrix(f64, 3, 2);
+    pub const f64_3x3 = Matrix(f64, 3, 3);
+    pub const f64_3x4 = Matrix(f64, 3, 4);
+    pub const f64_4x2 = Matrix(f64, 4, 2);
+    pub const f64_4x3 = Matrix(f64, 4, 3);
+    pub const f64_4x4 = Matrix(f64, 4, 4);
+
+};
 
 pub const glsl = struct {
 
-    pub const mat2x2 = MatrixInfo(f32, 2, 2);
-    pub const mat2x3 = MatrixInfo(f32, 2, 3);
-    pub const mat2x4 = MatrixInfo(f32, 2, 4);
-    pub const mat3x2 = MatrixInfo(f32, 3, 2);
-    pub const mat3x3 = MatrixInfo(f32, 3, 3);
-    pub const mat3x4 = MatrixInfo(f32, 3, 4);
-    pub const mat4x2 = MatrixInfo(f32, 4, 2);
-    pub const mat4x3 = MatrixInfo(f32, 4, 3);
-    pub const mat4x4 = MatrixInfo(f32, 4, 4);
+    pub const mat2x2 = Matrix(f32, 2, 2);
+    pub const mat2x3 = Matrix(f32, 2, 3);
+    pub const mat2x4 = Matrix(f32, 2, 4);
+    pub const mat3x2 = Matrix(f32, 3, 2);
+    pub const mat3x3 = Matrix(f32, 3, 3);
+    pub const mat3x4 = Matrix(f32, 3, 4);
+    pub const mat4x2 = Matrix(f32, 4, 2);
+    pub const mat4x3 = Matrix(f32, 4, 3);
+    pub const mat4x4 = Matrix(f32, 4, 4);
     
     pub const mat2 = mat2x2;
     pub const mat3 = mat3x3;
     pub const mat4 = mat4x4;
 
-    pub const dmat2x2 = MatrixInfo(f64, 2, 2);
-    pub const dmat2x3 = MatrixInfo(f64, 2, 3);
-    pub const dmat2x4 = MatrixInfo(f64, 2, 4);
-    pub const dmat3x2 = MatrixInfo(f64, 3, 2);
-    pub const dmat3x3 = MatrixInfo(f64, 3, 3);
-    pub const dmat3x4 = MatrixInfo(f64, 3, 4);
-    pub const dmat4x2 = MatrixInfo(f64, 4, 2);
-    pub const dmat4x3 = MatrixInfo(f64, 4, 3);
-    pub const dmat4x4 = MatrixInfo(f64, 4, 4);
+    pub const dmat2x2 = Matrix(f64, 2, 2);
+    pub const dmat2x3 = Matrix(f64, 2, 3);
+    pub const dmat2x4 = Matrix(f64, 2, 4);
+    pub const dmat3x2 = Matrix(f64, 3, 2);
+    pub const dmat3x3 = Matrix(f64, 3, 3);
+    pub const dmat3x4 = Matrix(f64, 3, 4);
+    pub const dmat4x2 = Matrix(f64, 4, 2);
+    pub const dmat4x3 = Matrix(f64, 4, 3);
+    pub const dmat4x4 = Matrix(f64, 4, 4);
 
     pub const dmat2 = dmat2x2;
     pub const dmat3 = dmat3x3;
@@ -424,34 +429,34 @@ pub const glsl = struct {
 
 pub const hlsl = struct {
 
-    pub const half2x2 = MatrixInfo(f16, 2, 2);
-    pub const half2x3 = MatrixInfo(f16, 2, 3);
-    pub const half2x4 = MatrixInfo(f16, 2, 4);
-    pub const half3x2 = MatrixInfo(f16, 3, 2);
-    pub const half3x3 = MatrixInfo(f16, 3, 3);
-    pub const half3x4 = MatrixInfo(f16, 3, 4);
-    pub const half4x2 = MatrixInfo(f16, 4, 2);
-    pub const half4x3 = MatrixInfo(f16, 4, 3);
-    pub const half4x4 = MatrixInfo(f16, 4, 4);
+    pub const half2x2 = Matrix(f16, 2, 2);
+    pub const half2x3 = Matrix(f16, 2, 3);
+    pub const half2x4 = Matrix(f16, 2, 4);
+    pub const half3x2 = Matrix(f16, 3, 2);
+    pub const half3x3 = Matrix(f16, 3, 3);
+    pub const half3x4 = Matrix(f16, 3, 4);
+    pub const half4x2 = Matrix(f16, 4, 2);
+    pub const half4x3 = Matrix(f16, 4, 3);
+    pub const half4x4 = Matrix(f16, 4, 4);
 
-    pub const float2x2 = MatrixInfo(f32, 2, 2);
-    pub const float2x3 = MatrixInfo(f32, 2, 3);
-    pub const float2x4 = MatrixInfo(f32, 2, 4);
-    pub const float3x2 = MatrixInfo(f32, 3, 2);
-    pub const float3x3 = MatrixInfo(f32, 3, 3);
-    pub const float3x4 = MatrixInfo(f32, 3, 4);
-    pub const float4x2 = MatrixInfo(f32, 4, 2);
-    pub const float4x3 = MatrixInfo(f32, 4, 3);
-    pub const float4x4 = MatrixInfo(f32, 4, 4);
+    pub const float2x2 = Matrix(f32, 2, 2);
+    pub const float2x3 = Matrix(f32, 2, 3);
+    pub const float2x4 = Matrix(f32, 2, 4);
+    pub const float3x2 = Matrix(f32, 3, 2);
+    pub const float3x3 = Matrix(f32, 3, 3);
+    pub const float3x4 = Matrix(f32, 3, 4);
+    pub const float4x2 = Matrix(f32, 4, 2);
+    pub const float4x3 = Matrix(f32, 4, 3);
+    pub const float4x4 = Matrix(f32, 4, 4);
 
-    pub const double2x2 = MatrixInfo(f64, 2, 2);
-    pub const double2x3 = MatrixInfo(f64, 2, 3);
-    pub const double2x4 = MatrixInfo(f64, 2, 4);
-    pub const double3x2 = MatrixInfo(f64, 3, 2);
-    pub const double3x3 = MatrixInfo(f64, 3, 3);
-    pub const double3x4 = MatrixInfo(f64, 3, 4);
-    pub const double4x2 = MatrixInfo(f64, 4, 2);
-    pub const double4x3 = MatrixInfo(f64, 4, 3);
-    pub const double4x4 = MatrixInfo(f64, 4, 4);
+    pub const double2x2 = Matrix(f64, 2, 2);
+    pub const double2x3 = Matrix(f64, 2, 3);
+    pub const double2x4 = Matrix(f64, 2, 4);
+    pub const double3x2 = Matrix(f64, 3, 2);
+    pub const double3x3 = Matrix(f64, 3, 3);
+    pub const double3x4 = Matrix(f64, 3, 4);
+    pub const double4x2 = Matrix(f64, 4, 2);
+    pub const double4x3 = Matrix(f64, 4, 3);
+    pub const double4x4 = Matrix(f64, 4, 4);
 
 };
