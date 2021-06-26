@@ -5,8 +5,6 @@ const builtin = std.builtin;
 
 pub const Signedness = std.builtin.Signedness;
 
-
-
 pub const ScalarInfo = struct {
 
     kind: Kind,
@@ -28,18 +26,6 @@ pub const ScalarInfo = struct {
 
     };
     const Self = @This();
-
-    pub fn init(comptime kind: Kind, comptime bits: usize) Self {
-        comptime {
-            var self = Self {
-                .kind = kind,
-                .bits = bits,
-                .scalar_type = undefined,
-            };
-            self.scalar_type = self.toType();
-            return self;
-        }
-    }
 
     pub fn fromType(comptime Scalar: type) ?Self {
         return switch (@typeInfo(Scalar)) {
@@ -69,30 +55,6 @@ pub const ScalarInfo = struct {
             errorUnexpectedType(Scalar, "scalar", .{})
         );
     }
-
-    fn toType(comptime self: Self) type {
-        const info: builtin.TypeInfo = switch (self.kind) {
-            .signed_int => .{
-                .Int = .{
-                    .signedness = .signed,
-                    .bits = self.bits,
-                },
-            },
-            .unsigned_int => .{
-                .Int = .{
-                    .signedness = .unsigned,
-                    .bits = self.bits,
-                },
-            },
-            .float => .{
-                .Float = .{
-                    .bits = self.bits,
-                }
-            }
-        };
-        return @Type(info);
-    }
-
 
     pub fn isInteger(comptime self: Self) bool {
         return switch(self.kind) {
@@ -237,14 +199,13 @@ pub const MatrixInfo = struct {
 
     fn fromType(comptime Matrix: type) ?Self {
         comptime {
-            const Fields = switch (@typeInfo(Matrix)) {
+            const Entries = switch (@typeInfo(Matrix)) {
                 .Struct => |info| get_fields: {
                     if (info.layout != .Extern) return null;
-                    if (info.is_tuple) return null;
                     const fields = info.fields;
                     if (fields.len != 1) return null;
                     const field = fields[0];
-                    if (!std.mem.eql(u8, field.name, "fields")) return null;
+                    if (!std.mem.eql(u8, field.name, "entries")) return null;
                     if (field.is_comptime) return null;
                     break :get_fields field.field_type;
                 },
@@ -252,7 +213,7 @@ pub const MatrixInfo = struct {
             };
             var row_count: usize = undefined;
             var col_count: usize = undefined;
-            const Row = switch (@typeInfo(Fields)) {
+            const Row = switch (@typeInfo(Entries)) {
                 .Array => |info| get_row: {
                     row_count = info.len;
                     if (info.sentinel) |_| return null;
@@ -260,7 +221,7 @@ pub const MatrixInfo = struct {
                 },
                 else => return null,
             };
-            const Scalar = switch (@typeInfo(Row)) {
+            const Entry = switch (@typeInfo(Row)) {
                 .Array => |info| get_scalar: {
                     col_count = info.len;
                     if (info.sentinel) |_| return null;
@@ -268,18 +229,9 @@ pub const MatrixInfo = struct {
                 },
                 else => return null,
             };
-            switch (row_count) {
-                1, 2, 3, 4 => {},
-                else => return null,
-            }
-            switch (col_count) {
-                1, 2, 3, 4 => {},
-                else => return null,
-            }
-            if (row_count == 1 and col_count == 1) {
-                return null;
-            }
-            if (ScalarInfo.fromType(Scalar)) |scalar_info| {
+            if (!isDimensionCountSupported(row_count)) return null;
+            if (!isDimensionCountSupported(col_count)) return null;
+            if (ScalarInfo.fromType(Entry)) |scalar_info| {
                 if (!scalar_info.isFloat()) {
                     return null;
                 }
@@ -288,7 +240,7 @@ pub const MatrixInfo = struct {
                     .row_count = row_count,
                     .col_count = col_count,
                     .matrix_type = Matrix,
-                    .scalar_type = Scalar,
+                    .scalar_type = Entry,
                 };
             }
             else {
@@ -306,6 +258,13 @@ pub const MatrixInfo = struct {
 
     pub fn isSquare(comptime self: Self) bool {
         return self.row_count == self.col_count;
+    }
+
+
+    pub fn assertSquare(comptime self: Self) void {
+        if (self.row_count != row_count) {
+            errorUnexpectedType(self.matrix_type, "square matrix", .{row_count});
+        }
     }
 
     pub fn assertRowCount(comptime self: Self, comptime row_count: usize) void {
@@ -332,65 +291,6 @@ pub const MatrixInfo = struct {
             assertDimensionCountSupported(row_count);
             assertDimensionCountSupported(col_count);
         }
-    }
-
-};
-
-pub const TypeInfo = union(enum) {
-    
-    Scalar: ScalarInfo,
-    Vector: VectorInfo,
-    Matrix: MatrixInfo,
-
-    const Self = @This();
-
-    pub fn fromType(comptime Type: type) ?Self {
-        return if (ScalarInfo.fromType(Type)) |info| (
-            Self {
-                .Scalar = info,
-            }
-        )
-        else if (VectorInfo.fromType(Type)) |info| (
-            Self {
-                .Vector = info,
-            }
-        )
-        else if (MatrixInfo.fromType(Type)) |info| (
-            Self {
-                .Matrix = info,
-            }
-        )
-        else null;
-    }
-
-    pub fn fromTypeAssert(comptime Type: type) Self {
-        return fromType(Type) orelse (
-            errorUnexpectedType(Type, "math type", .{})
-        );
-    }
-
-    pub fn typeType(comptime self: Self) type {
-        return switch (self) {
-            .Scalar => |info| info.scalar_type,
-            .Vector => |info| info.vector_type,
-            .Matrix => |info| info.matrix_type
-        };
-    }
-
-    pub fn scalarType(comptime self: Self) type {
-        return switch (self) {
-            .Scalar => |info| info.scalar_type,
-            .Vector => |info| info.scalar_type,
-            .Matrix => |info| info.scalar_type,
-        };
-    }
-
-    pub fn elementCount(comptime self: Self) usize {
-        return switch (self) {
-            .Scalar => 1,
-            .Vector => |info| info.dimensions,
-            .Matrix => |info| info.row_count * info.col_count,
-        };
     }
 
 };

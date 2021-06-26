@@ -1,6 +1,6 @@
 usingnamespace @import("_imports.zig");
 
-// universa;
+// universal
 
 pub fn negate(rhs: anytype) @TypeOf(rhs) {
     _ = ScalarInfo.fromTypeAssert(@TypeOf(rhs));
@@ -119,6 +119,31 @@ pub fn truncate(comptime Target: type, value: anytype) Target {
     ScalarInfo.fromTypeAssert(@TypeOf(value)).assertInteger();
     ScalarInfo.fromTypeAssert(Target).assertInteger();
     return @truncate(Target, value);
+}
+
+
+pub fn Scalar(comptime kind, ScalarInfo.Kind, comptime bits: usize) type {
+    const info: std.builtin.TypeInfo = switch(kind) {
+        .unsigned_int => .{
+            .Int = .{
+                .signedness = .unsigned,
+                .bits = bits,
+            },
+        },
+        .signed_int => .{
+            .Int = .{
+                .signedness = .signed,
+                .bits = bits,
+            },
+        },
+        .float => .{
+            .Float = .{
+                .bits = bits,
+            },
+        },
+    };
+    return @Type(info);
+
 }
 
 pub const glsl = struct {

@@ -156,7 +156,8 @@ fn mixin(comptime Self: type) type {
 
                 comptime var rng = std.rand.Isaac64.init(0xDEAD1025DEAD0413);
 
-                const ScalarBits = ScalarInfo.init(.unsigned_int, scalar_info.bits).scalar_type;
+                // unsigned int version of Scalar for bitcasting to
+                const ScalarBits = scalar.Scalar(.unsigned_int, scalar_info.bits);
 
                 var result: u64;
                 inline for (Axis.values) |axis| {
