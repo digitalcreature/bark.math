@@ -10,119 +10,118 @@ pub fn negate(rhs: anytype) @TypeOf(rhs) {
 }
 
 pub fn add(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs + rhs;
 }
 
 pub fn sub(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs - rhs;
 }
 
 pub fn mul(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs * rhs;
 }
 
 pub fn div(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs / rhs;
 }
 
 pub fn rem(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return @rem(lhs, rhs);
 }
 
 pub fn mod(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return @mod(lhs, rhs);
 }
 
 // wrapping (integer only)
 
 pub fn negateWrap(rhs: anytype) @TypeOf(rhs) {
-    comptime scalarInfo(@TypeOf(lhs)).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(lhs));
     return -% rhs;
 }
 
 pub fn addWrap(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    comptime scalarInfo(@TypeOf(lhs)).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(lhs));
     return lhs +% rhs;
 }
 
 
 pub fn subWrap(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    comptime scalarInfo(@TypeOf(lhs)).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(lhs));
     return lhs -% rhs;
 }
 
 pub fn mulWrap(lhs: anytype, rhs: @TypeOf(lhs)) @TypeOf(lhs) {
-    comptime scalarInfo(@TypeOf(lhs)).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(lhs));
     return lhs *% rhs;
 }
 
 // comparison
 
 pub fn equals(lhs: anytype, rhs: @TypeOf(lhs)) bool {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs == rhs;
 }
 
 pub fn lessThan(lhs: anytype, rhs: @TypeOf(lhs)) bool {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs < rhs;
 }
 
 pub fn greaterThan(lhs: anytype, rhs: @TypeOf(lhs)) bool {
-    _ = comptime scalarInfo(@TypeOf(lhs)).assert();
+    comptime meta.assertIsScalar(@TypeOf(lhs));
     return lhs > rhs;
 }
 
 // casts
 
 pub fn as(comptime Target: type, value: anytype) Target {
-    _ = comptime scalarInfo(@TypeOf(value)).assert();
-    _ = comptime scalarInfo(Target).assert();
+    comptime meta.assertIsScalar(@TypeOf(value));
+    comptime meta.assertIsScalar(Target);
     return @as(Target, value);
 }
 
 pub fn bitCast(comptime Target: type, value: anytype) Target {
-    _ = comptime scalarInfo(@TypeOf(value)).assert();
-    _ = comptime scalarInfo(Target).assert();
+    comptime meta.assertIsScalar(@TypeOf(value));
+    comptime meta.assertIsScalar(Target);
     return @bitCast(Target, value);
 }
 
 pub fn floatCast(comptime Target: type, value: anytype) Target {
-    comptime scalarInfo(@TypeOf(value)).assert().assertFormat(.float);
-    comptime scalarInfo(Target).assert().assertFormat(.float);
+    comptime meta.assertIsFloatScalar(@TypeOf(value));
+    comptime meta.assertIsFloatScalar(Target);
     return @floatCast(Target, value);
 }
 
 pub fn floatToInt(comptime Target: type, value: anytype) Target {
-    comptime scalarInfo(@TypeOf(value)).assert().assertFormat(.float);
-    comptime scalarInfo(Target).assert().assertFormat(.integer);
+    comptime meta.assertIsFloatScalar(@TypeOf(value));
+    comptime meta.assertIsIntegerScalar(Target);
     return @floatToInt(Target, value);
 }
 
 pub fn intCast(comptime Target: type, value: anytype) Target {
-    comptime scalarInfo(@TypeOf(value)).assert().assertFormat(.integer);
-    comptime scalarInfo(Target).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(value));
+    comptime meta.assertIsIntegerScalar(Target);
     return @intCast(Target, value);
 }
 
 pub fn intToFloat(comptime Target: type, value: anytype) Target {
-    comptime scalarInfo(@TypeOf(value)).assert().assertFormat(.integer);
-    comptime scalarInfo(Target).assert().assertFormat(.float);
+    comptime meta.assertIsIntegerScalar(@TypeOf(value));
+    comptime meta.assertIsFloatScalar(Target);
     return @intToFloat(Target, value);
 }
 
 pub fn truncate(comptime Target: type, value: anytype) Target {
-    comptime scalarInfo(@TypeOf(value)).assert().assertFormat(.integer);
-    comptime scalarInfo(Target).assert().assertFormat(.integer);
+    comptime meta.assertIsIntegerScalar(@TypeOf(value));
+    comptime meta.assertIsIntegerScalar(Target);
     return @truncate(Target, value);
 }
-
 
 pub fn hash(self: anytype) u64 {
     const Self = @TypeOf(self);

@@ -198,10 +198,10 @@ pub fn Vector(comptime scalar_type: type, comptime dimension_count: usize) type 
         }
 
         fn CastVector(comptime Target: type) type {
-            if (meta.scalarInfo(Target).opt()) |_| {
+            if (meta.isScalar(Target))  {
                 return Vector(Target, dimensions);
             }
-            if (isVector(Target)) {
+            if (meta.isVector(Target)) {
                 if (Target.dimensions == dimensions) {
                     return Target;
                 }
@@ -386,28 +386,6 @@ pub fn Vector(comptime scalar_type: type, comptime dimension_count: usize) type 
     };
 
 }
-
-pub fn isVector(comptime vector_type: type) bool {
-    if (@typeInfo(vector_type) == .Struct) {
-        if (@hasDecl(vector_type, "Scalar") and @TypeOf(vector_type.Scalar) == type) {
-            if (@hasDecl(vector_type, "dimensions") and @TypeOf(vector_type.dimensions) == usize) {
-                const Scalar = vector_type.Scalar;
-                const dimensions = vector_type.dimensions;
-                if (meta.scalarInfo(Scalar) == .valid and isDimensionCountSupported(dimensions)) {
-                    return vector_type == Vector(Scalar, dimensions);
-                }
-            }
-        }
-    }
-    return false;
-}
-
-pub fn assertIsVector(comptime vector_type: type) void {
-    if (!isVector(vector_type)) {
-        errorUnexpectedType(vector_type, "vector", .{});
-    }
-}
-
 
 pub const types = struct {
 

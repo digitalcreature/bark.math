@@ -45,6 +45,10 @@ pub fn InfoResult(comptime Info: type, comptime kind_name: []const u8) type {
                 .invalid => null,
             };
         }
+
+        pub fn isValid(comptime self: Self) bool {
+            return self != .invalid;
+        }
         
     };
 
