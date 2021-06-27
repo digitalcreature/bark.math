@@ -181,7 +181,6 @@ pub fn Matrix(comptime scalarType: type, comptime rowCount: usize, comptime colC
                 errorUnexpectedType(Rhs, "{s} matrix with {d} rows", .{@typeName(Scalar), col_count});    
             }
             const rhs_get = Matrix(Scalar, col_count, Result.col_count).get;
-            const ResultColAxis = cardinal.Axis(MatrixInfo.fromTypeAssert(Result).col_count);
             var result = Result.zero;
             inline for (RowAxis.values) |i| {
                 inline for (Result.ColAxis.values) |j| {

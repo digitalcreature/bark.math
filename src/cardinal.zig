@@ -11,16 +11,17 @@ pub const Sign = enum(u1) {
     }
 
     pub fn toScalar(self: Self, comptime Scalar: type) Scalar {
-        const info = ScalarInfo.fromTypeAssert(Scalar);
-        return if (info.isSigned()) (
-            switch (self) {
-                .positive => 1,
-                .negative => -1,
-            }
-        )
-        else (
-            @as(Scalar, ~ @enumToInt(self))
-        );
+        const info = meta.scalarInfo(Scalar).assert();
+        return switch (info.signedness()) {
+            .signed => switch (self) {
+                .positive => @as(Scalar, 1),
+                .negative => @as(Scalar, -1),
+            },
+            .unsigned => switch (self) {
+                .positive => @as(Scalar, 1),
+                .negative => @as(Scalar, 0),
+            },
+        };
     }
 
 };
@@ -32,11 +33,11 @@ fn CommonMixin(comptime Self: type) type {
 
         const Tag = @typeInfo(Self).Enum.tag_type;
 
-        pub fn toIndex(self: Self) usize {
+        pub fn toIndex(comptime self: Self) usize {
             return @enumToInt(self);
         }
 
-        pub fn fromIndex(value: usize) Self {
+        pub fn fromIndex(comptime value: usize) Self {
             return @intToEnum(Self, @truncate(Tag, value));
         }
 
@@ -91,7 +92,7 @@ fn CardinalMixin(comptime Self: type) type {
 
 pub fn Cardinal(comptime dimensions: usize) type {
     return switch(dimensions) {
-        2 => enum {
+        2 => enum(u32) {
             x_positive = 0,
             y_positive = 1,
             
@@ -100,7 +101,7 @@ pub fn Cardinal(comptime dimensions: usize) type {
 
             pub usingnamespace CardinalMixin(@This());
         },
-        3 => enum {
+        3 => enum(u32) {
             x_positive = 0,
             y_positive = 1,
             z_positive = 2,
@@ -111,7 +112,7 @@ pub fn Cardinal(comptime dimensions: usize) type {
 
             pub usingnamespace CardinalMixin(@This());
         },
-        4 => enum {
+        4 => enum(u32) {
             x_positive = 0,
             y_positive = 1,
             z_positive = 2,

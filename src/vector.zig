@@ -3,274 +3,252 @@ usingnamespace @import("_imports.zig");
 const cardinal = @import("cardinal.zig");
 const scalar = @import("scalar.zig");
 
-fn mixin(comptime Self: type) type {
+pub fn Vector(comptime scalar_type: type, comptime dimension_count: usize) type {
 
-    const self_info = VectorInfo.fromTypeAssert(Self);
-    const scalar_info = self_info.scalar_info;
+    const scalar_info = comptime meta.scalarInfo(scalar_type).assert();
+    comptime assertDimensionCountSupported(dimension_count);
 
-    return struct {
+    return extern struct {
 
-        pub const dimensions = self_info.dimensions;
-        pub const scalar_kind = scalar_info.kind;
-        pub const Scalar = self_info.scalar_type;
+        v: Values,
+
+        pub const Scalar = scalar_type;
+        pub const dimensions = dimension_count;
+
         pub const Axis = cardinal.Axis(dimensions);
+        pub const Values = [dimensions]Scalar;
 
-        /// all vectors
-        const common_mixin = struct {
+        const indices = ([_]usize{ 0, 1, 2, 3, })[0..dimensions];
 
-            pub const zero = fill(0);
-            pub const one = fill(1);
+        const Self = @This();
 
-            /// init functions
-            pub usingnamespace switch (dimensions) {
-                2 => struct {
-                    pub fn init(x: Scalar, y: Scalar) Self
-                        { return fromArray(.{ x, y }); }
-                },
-                3 => struct {
-                    pub fn init(x: Scalar, y: Scalar, z: Scalar) Self
-                        { return fromArray(.{ x, y, z }); }
-                },
-                4 => struct {
-                    pub fn init(x: Scalar, y: Scalar, z: Scalar, w: Scalar) Self
-                        { return fromArray(.{ x, y, z, w }); }
-                },
-                else => unreachable,
+        pub const zero = fill(0);
+        pub const one = fill(1);
+
+        pub usingnamespace init_mixin;
+        const init_mixin = switch (dimensions) {
+            2 => struct {
+                pub fn init(x: Scalar, y: Scalar) Self
+                    { return Self { .v = .{ x, y, } }; }
+            },
+            3 => struct {
+                pub fn init(x: Scalar, y: Scalar, z: Scalar) Self
+                    { return Self { .v = .{ x, y, z, } }; }
+            },
+            4 => struct {
+                pub fn init(x: Scalar, y: Scalar, z: Scalar, w: Scalar) Self
+                    { return Self { .v = .{ x, y, z, w, } }; }
+            },
+            else => unreachable,
+        };
+
+        pub fn from(src: anytype) Self {
+            const Src = @TypeOf(src);
+            return switch (Src) {
+                Scalar => fill(src),
+                Values => Self { .v = src },
+                Self => src,
+                else => errorUnexpectedType(Src, "{s}, {s}, or {s}",
+                    .{ @typeName(Scalar), @typeName(Values), @typeName(Self) }
+                ),
             };
+        }
 
-            pub fn from(src: anytype) Self {
-                const Src = @TypeOf(src);
-                if (Src == Scalar) {
-                    return fill(src);
-                }
-                if (Src == [dimensions]Scalar) {
-                    return fromArray(src);
-                }
-                if (VectorInfo.fromType(Src)) |info| {
-                    if (info.isSimilar(self_info)) {
-                        const src_get = mixin(Src).get;
-                        var self: Self = undefined;
-                        inline for (Axis.values) |axis| {
-                            self.set(axis, src_get(src, axis));
-                        }
-                        return self;
-                    }
-                }
-                comptime errorUnexpectedType(
-                    Src, "{0s}, [{1d}]{0s}, {1d} dimensional {0s} vector",
-                    .{ @typeName(Scalar), dimensions }
-                );
-            }
+        fn fill(value: Scalar) Self {
+            var self: Self = undefined;
+            std.mem.set(Scalar, &self.v, value);
+            return self;
+        }
 
-            pub fn fromArray(values: [dimensions]Scalar) Self {
-                var self: Self = undefined;
-                inline for (Axis.values) |axis, i| {
-                    self.set(axis, values[i]);
+        pub fn unit(comptime axis: Axis) Self {
+            comptime var result = zero;
+            result.set(axis, 1);
+            return result;
+        }
+
+        pub fn get(self: Self, comptime axis: Axis) Scalar
+            { return self.v[axis.toIndex()]; }
+        pub fn ptr(self: *Self, comptime axis: Axis) *Scalar
+            { return &self.v[axis.toIndex()]; }
+        pub fn set(self: *Self, comptime axis: Axis, value: Scalar) void
+            { self.v[axis.toIndex()] = value; }
+
+
+        const swizzle_letters = ("xyzw")[0..dimensions];
+
+        fn Swizzle(comptime pattern: []const u8) type {
+            comptime {
+                if (pattern.len != 1 and !isDimensionCountSupported(pattern.len)) {
+                    compileError("invalid length swizzle pattern '{s}', must be 1, 2, 3, or 4 components", .{ pattern });
                 }
-                return self;
-            }
-
-            pub fn toArray(self: Self) [dimensions]Scalar {
-                var values: [dimensions]Scalar = undefined;
-                inline for (Axis.values) |axis, i| {
-                    values[i] = self.get(axis);
-                }
-                return values;
-            }
-
-            pub fn get(self: Self, comptime axis: Axis) Scalar
-                { return @field(self, self_info.field_names[comptime axis.toIndex()]); }
-            pub fn ptr(self: Self, comptime axis: Axis) *Scalar
-                { return &@field(self, self_info.field_names[comptime axis.toIndex()]); }
-            pub fn set(self: *Self, comptime axis: Axis, value: Scalar) void
-                { @field(self, self_info.field_names[comptime axis.toIndex()]) = value; }
-
-            fn Swizzle(comptime swizzle_string: []const u8) type {
-                comptime {
-                    if (isDimensionCountSupported(swizzle_string.len)) {
-                        return Vector(Scalar, swizzle_string.len);
-                    }
-                    else {
-                        compileError("invalid swizzle string \"{s}\" length must be 2, 3, or 4", .{swizzle_string});
-                    }
-                }
-            }
-
-            pub fn swizzle(self: Self, comptime swizzle_string: []const u8) Swizzle(swizzle_string) {
-                var result: [swizzle_string.len]Scalar = undefined;
-                inline for (swizzle_string) |specifier, i| {
-                    switch (specifier) {
-                        '0' => result[i] = 0,
-                        '1' => result[i] = 1,
+                for (pattern) |letter| {
+                    switch (letter) {
+                        '0', '1' => {},
                         else => {
-                            const name: []const u8 = &.{specifier};
-                            if (@hasField(Axis, name)) {
-                                result[i] = self.get(@field(Axis, name));
+                            for (swizzle_letters) |valid_letter| {
+                                if (valid_letter == letter) {
+                                    break;
+                                }
                             }
                             else {
-                                compileError("invalid swizzle specifier '{s}'", .{name});
+                                compileError("invalid swizzle pattern '{s}' for {s}", .{ pattern, @typeName(Self) });
                             }
-                        },
+                        }
                     }
                 }
-                return Swizzle(swizzle_string).fromArray(result);
-            }
-
-            pub fn fill(value: Scalar) Self {
-                var self: Self = undefined;
-                inline for (Axis.values) |axis| {
-                    self.set(axis, value);
+                if (pattern.len == 1) {
+                    return Scalar;
                 }
-                return self;
-            }
-
-            pub fn unit(comptime axis: Axis) Self {
-                comptime {
-                    var result = zero;
-                    result.set(axis, 1);
-                    return result;
+                else {
+                    return Vector(Scalar, pattern.len);
                 }
             }
+        }
 
-            pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
-                try writer.writeAll("(");
-                inline for (Axis.values) |axis, i| {
-                    if (i > 0) {
-                        try writer.writeAll(", ");
-                    }
-                    try std.fmt.formatType(self.get(axis), fmt, options, writer, 0);
+        pub fn swizzle(self: Self, comptime pattern: []const u8) Swizzle(pattern) {
+            const Result = Swizzle(pattern);
+            var result: Result = undefined;
+            inline for (pattern) |letter, i| {
+                const r = if (Result == Scalar) (
+                    &result
+                )
+                else (
+                    &result.v[i]
+                );
+                switch (letter) {
+                    '0' => r.* = 0,
+                    '1' => r.* = 1,
+                    else => {
+                        r.* = for (swizzle_letters) |valid_letter, j| {
+                            if (letter == valid_letter) {
+                                break self.v[j];
+                            }
+                        }
+                        else unreachable;   // we already checked validity in Swizzle()
+                    },
                 }
-                try writer.writeAll(")");
+            }
+            return result;
+        }
+
+        pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.writeAll("(");
+            inline for (indices) |i| {
+                if (i > 0) {
+                    try writer.writeAll(", ");
+                }
+                try std.fmt.formatType(self.v[i], fmt, options, writer, 0);
+            }
+            try writer.writeAll(")");
+        }
+
+        fn binaryOpFields(lhs: Self, rhs: anytype, comptime op: fn(Scalar, Scalar) Scalar) Self {
+            var result: Self = undefined;
+            inline for (indices) |i| {
+                result.v[i] = op(lhs.v[i], from(rhs).v[i]);
+            }
+            return result;
+        }
+
+        fn unaryOpFields(rhs: Self, comptime op: fn(Scalar) Scalar) Self {
+            var result: Self = undefined;
+            inline for (indices) |i| {
+                result.v[i] = op(rhs.v[i]);
+            }
+            return result;
+        }
+
+        pub fn fold(self: Self, initial: Scalar, comptime op: fn(Scalar, Scalar) Scalar) Scalar {
+            var result = initial;
+            inline for (indices) |i| {
+                result = op(result, self.v[i]);
+            }
+            return result;
+        }
+
+        pub fn add(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.add); }
+        pub fn sub(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.sub); }
+        pub fn mul(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.mul); }
+        pub fn div(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.div); }
+        pub fn rem(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.rem); }
+        pub fn mod(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.mod); }
+
+        pub fn sum(self: Self) Scalar
+            { return self.fold(0, scalar.add); }
+        pub fn product(self: Self) Scalar
+            { return self.fold(1, scalar.mul); }
+
+        pub fn dot(lhs: Self, rhs: Self) Scalar
+            { return lhs.mul(rhs).sum(); }
+
+        pub fn len2(self: Self) Scalar
+            { return self.dot(self); }
+
+        fn castFields(self: Self, comptime Target: type, comptime op: ScalarCastFn(Target)) CastVector(Target) {
+            const Result = CastVector(Target);
+            var result: Result = undefined;
+            inline for (indices) |i| {
+                result.v[i] = op(Result.Scalar, self.v[i]);
+            }
+            return result;
+        }
+
+        fn ScalarCastFn(comptime Target: type) type {
+            return fn (type, anytype) CastVector(Target).Scalar;
+        }
+
+        fn CastVector(comptime Target: type) type {
+            if (meta.scalarInfo(Target).opt()) |_| {
+                return Vector(Target, dimensions);
+            }
+            if (isVector(Target)) {
+                if (Target.dimensions == dimensions) {
+                    return Target;
+                }
+            }
+            comptime errorUnexpectedType(Target, "scalar or {d} dimensional vector", .{dimensions});
+        }
+
+        pub fn as(self: Self, comptime Target: type) CastVector(Target)
+            { return self.castFields(Target, scalar.as); }
+        pub fn bitCast(self: Self, comptime Target: type) CastVector(Target)
+            { return self.castFields(Target, scalar.bitCast); }
+
+        pub fn eql(lhs: Self, rhs: anytype) bool {
+            const rhs_v = from(rhs);
+            return std.mem.eql(Scalar, &lhs.v, &rhs_v);
+        }
+
+        // chosen by fair random.org roll. garunteed to be random
+        const hash_masks = [4]u64 {
+            0x010ea372e7625ad9,
+            0x2039d47ef81627f0,
+            0x83d2b2e4507bf9e2,
+            0xfdd6bb7322df356f,
+        };
+
+        pub fn hash(self: Self) u64 {
+            var result: u64 = 0x66705ee142213141;
+            inline for (indices) |i| {
+                result ^= scalar.hash(self.v[i]) ^ hash_masks[i];
+            }
+            return result;
+        }
+
+        pub const HashContext = struct {
+
+            pub fn eql(_: @This(), lhs: Self, rhs: Self) bool {
+                return lhs.eql(rhs);
             }
 
-            pub fn eql(lhs: Self, rhs: Self) bool {
-                inline for (Axis.values) |axis| {
-                    if (lhs.get(axis) != rhs.get(axis)) {
-                        return false;
-                    }
-                }
-                return true;
+            pub fn hash(_: @This(), value: Self) u64 {
+                return value.hash();
             }
-
-            pub fn hash(self: Self) u64 {
-
-                comptime var rng = std.rand.Isaac64.init(0xDEAD1025DEAD0413);
-
-                // unsigned int version of Scalar for bitcasting to
-                const ScalarBits = scalar.Scalar(.unsigned_int, scalar_info.bits);
-
-                var result: u64;
-                inline for (Axis.values) |axis| {
-                    const element_bits = @bitCast(ScalarBits, self.get(axis));
-                    const element_hash = (
-                        if (scalar_info.bits <= 64) (
-                            @as(u64, element_bits)
-                        )
-                        else (
-                            @truncate(u64, element_bits)
-                        )
-                    );
-                    result ^= element_hash ^ comptime rng.random.int(u64);
-                }
-                return result;
-            }
-
-            pub const HashContext = struct {
-
-                pub fn eql(self: Context, lhs: Self, rhs: Self) bool {
-                    return lhs.eql(rhs);
-                }
-
-                pub fn hash(self: Context, value: Self) u64 {
-                    return value.hash();
-                }
-
-            };
-
-            pub fn binaryOpFields(lhs: Self, rhs: anytype, comptime op: fn(Scalar, Scalar) Scalar) Self {
-                var result: Self = undefined;
-                inline for (Axis.values) |axis| {
-                    result.set(axis, op(lhs.get(axis), from(rhs).get(axis)));
-                }
-                return result;
-            }
-
-            pub fn unaryOpFields(rhs: Self, comptime op: fn(Scalar) Scalar) Self {
-                var result: Self = undefined;
-                inline for (Axis.values) |axis| {
-                    result.set(axis, op(rhs.get(axis)));
-                }
-                return result;
-            }
-
-            pub fn foldFields(self: Self, initial: Scalar, comptime op: fn(Scalar, Scalar) Scalar) Scalar {
-                var result = initial;
-                inline for (Axis.values) |axis| {
-                    result = op(result, self.get(axis));
-                }
-                return result;
-            }
-
-            pub fn add(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.add); }
-            pub fn sub(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.sub); }
-            pub fn mul(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.mul); }
-            pub fn div(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.div); }
-            pub fn rem(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.rem); }
-            pub fn mod(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.mod); }
-
-            pub fn sum(self: Self) Scalar
-                { return self.foldFields(0, scalar.add); }
-            pub fn product(self: Self) Scalar
-                { return self.foldFields(1, scalar.mul); }
-
-            pub fn dot(lhs: Self, rhs: Self) Scalar
-                { return lhs.mul(rhs).sum(); }
-
-            pub fn len2(self: Self) Scalar
-                { return self.dot(self); }
-
-            pub fn castFields(self: Self, comptime Target: type, comptime op: ScalarCastFn(Target)) CastVector(Target) {
-                const Result = CastVector(Target);
-                const ResultScalar = CastScalar(Target);
-                const result_set = mixin(Result).set;
-                var result: CastVector(Target) = undefined;
-                inline for (Axis.values) |axis| {
-                    result_set(&result, axis, op(ResultScalar, self.get(axis)));
-                }
-                return result;
-            }
-
-            fn ScalarCastFn(comptime Target: type) type {
-                return fn (type, anytype) CastScalar(Target);
-            }
-
-            pub fn CastVector(comptime Target: type) type {
-                if (ScalarInfo.fromType(Target)) |info| {
-                    return Vector(Target, dimensions);
-                }
-                if (VectorInfo.fromType(Target)) |info| {
-                    if (info.dimensions == dimensions) {
-                        return Target;
-                    }
-                }
-                comptime errorUnexpectedType(Target, "scalar or {d} dimensional vector", .{dimensions});
-            }
-
-            fn CastScalar(comptime Target: type) type {
-                const Tv = CastVector(Target);
-                const info = VectorInfo.fromTypeAssert(Tv);
-                return info.scalar_type;
-            }
-
-            pub fn as(self: Self, comptime Target: type) CastVector(Target)
-                { return self.castFields(Target, scalar.as); }
-            pub fn bitCast(self: Self, comptime Target: type) CastVector(Target)
-                { return self.castFields(Target, scalar.bitCast); }
 
         };
 
-        /// signed integer, unsigned integer
-        const integer_mixin = struct {
+        pub usingnamespace integer_mixin;
+        const integer_mixin = if (scalar_info.format() != .integer) struct {} else struct {
 
             pub fn addWrap(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.addWrap); }
             pub fn subWrap(lhs: Self, rhs: anytype) Self { return lhs.binaryOpFields(rhs, scalar.subWrap); }
@@ -289,31 +267,18 @@ fn mixin(comptime Self: type) type {
 
         };
 
-        /// signed integer, float
-        const signed_mixin = struct {
-
+        pub usingnamespace signed_mixin;
+        const signed_mixin = if (scalar_info.signedness() != .signed) struct {} else struct {
             pub fn negate(self: Self) Self { return self.unaryOpFields(scalar.negate); }
-
         };
 
-        /// signed integer
-        const signed_int_mixin = struct {
-            pub usingnamespace integer_mixin;
-            pub usingnamespace signed_mixin;
-
+        pub usingnamespace signed_int_mixin;
+        const signed_int_mixin = if (scalar_info.kind_info != .signed_integer) struct {} else struct {
             pub fn negateWrap(self: Self) Self { return self.unaryOpFields(scalar.negateWrap); }
-
         };
 
-        /// unsigned integer
-        const unsigned_int_mixin = struct {
-            pub usingnamespace integer_mixin;
-        };
-
-        /// float
-        const float_mixin = struct {
-
-            pub usingnamespace signed_mixin;
+        pub usingnamespace float_mixin;
+        const float_mixin = if (scalar_info.kind_info != .float) struct {} else struct {
 
             pub fn len(self: Self) Scalar {
                 return @sqrt(self.len2());
@@ -338,114 +303,111 @@ fn mixin(comptime Self: type) type {
                 return lhs.sub(lhs.project(rhs));
             }
 
-            pub usingnamespace switch (dimensions) {
-                2 => struct {},
-                3 => struct {
-
-                    pub fn cross(lhs: Self, rhs: anytype) Self {
-                        const a = lhs;
-                        const b = from(rhs).toArray();
-                        var result: Self = undefined;
-                        result.set(.x, a.get(.y) * b.get(.z) - a.get(.z) * b.get(.y));
-                        result.set(.y, a.get(.z) * b.get(.x) - a.get(.x) * b.get(.z));
-                        result.set(.z, a.get(.x) * b.get(.y) - a.get(.y) * b.get(.x));
-                        return result;
-                    }
-
-                    const Float4 = Vector(Scalar, 4);
-
-                    pub fn asAffinePosition(self: Self) Float4 {
-                        return Float4.init(
-                            self.get(.x),
-                            self.get(.y),
-                            self.get(.z),
-                            1,
-                        );
-                    }
-
-                    pub fn asAffineDirection(self: Self) Float4 {
-                        return Float4.init(
-                            self.get(.x),
-                            self.get(.y),
-                            self.get(.z),
-                            0,
-                        );
-                    }
-
-                    pub const fromAffinePosition = Float4.asAffinePosition;
-                    pub const fromAffineDirection = Float4.asAffineDirection;
-
-                },
-                4 => struct {
-
-                    const Float3 = Vector(Scalar, 3);
-
-                    pub fn asAffinePosition(self: Self) ?Float3 {
-                        const w = self.get(.w);
-                        if (w == 0) return null;
-                        return Float3.init(
-                            self.get(.x) / w,
-                            self.get(.y) / w,
-                            self.get(.z) / w,
-                        );
-                    }
-
-                    pub fn asAffineDirection(self: Self) Float3 {
-                        return Float3.init(
-                            self.get(.x),
-                            self.get(.y),
-                            self.get(.z),
-                        );
-                    }
-
-                    pub const fromAffinePosition = Float3.asAffinePosition;
-                    pub const fromAffineDirection = Float3.asAffineDirection;
-
-                },
-                else => unreachable,
-            };
-
             pub fn floatCast(self: Self, comptime Target: type) CastVector(Target)
                 { return self.castFields(Target, scalar.floatCast); }
             pub fn floatToInt(self: Self, comptime Target: type) CastVector(Target)
                 { return self.castFields(Target, scalar.floatToInt); }
 
+            pub usingnamespace float3_mixin;
+            const float3_mixin = if (dimensions != 3) struct {} else struct {
+                
+
+                pub fn cross(lhs: Self, rhs: anytype) Self {
+                    const a = &lhs.v;
+                    const b = &from(rhs).v;
+                    const X = 0;
+                    const Y = 1;
+                    const Z = 2;
+                    return Self {
+                        .v = .{
+                            a[Y] * b[Z] - a[Z] * b[Y],
+                            a[Z] * b[X] - a[X] * b[Z],
+                            a[X] * b[Y] - a[Y] * b[X],
+                        },
+                    };
+                }
+
+                const float4 = Vector(Scalar, 4);
+
+                pub fn asAffinePosition(self: Self) float4 {
+                    return float4 {
+                        .v = .{
+                            self.v[0], self.v[1], self.v[2], 1,
+                        },
+                    };
+                }
+
+                pub fn asAffineDirection(self: Self) float4 {
+                    return float4 {
+                        .v = .{
+                            self.v[0], self.v[1], self.v[2], 0,
+                        },
+                    };
+                }
+
+                pub const fromAffinePosition = float4.asAffinePosition;
+                pub const fromAffineDirection = float4.asAffineDirection;
+
+            };
+
+            pub usingnamespace float4_mixin;
+            const float4_mixin = if (dimensions != 4) struct {} else struct {
+
+                const float3 = Vector(Scalar, 3);
+
+                pub fn asAffinePosition(self: Self) ?float3 {
+                    const w = self.v[3];
+                    if (w == 0) return null;
+                    return float3 {
+                        .v = .{
+                            self.v[0] / w,
+                            self.v[1] / w,
+                            self.v[2] / w,
+                        },
+                    };
+                }
+
+                pub fn asAffineDirection(self: Self) float3 {
+                    return float3 {
+                        .v = .{
+                            self.v[0], self.v[1], self.v[2],
+                        },
+                    };
+                }
+
+                pub const fromAffinePosition = float3.asAffinePosition;
+                pub const fromAffineDirection = float3.asAffineDirection;
+
+            };
+
         };
 
-        pub usingnamespace common_mixin;
-        pub usingnamespace switch (scalar_kind) {
-            .signed_int => signed_int_mixin,
-            .unsigned_int => unsigned_int_mixin,
-            .float => float_mixin,
-        };
 
     };
 
 }
 
-pub fn Vector(comptime Scalar: type, comptime dimensions: usize) type {
-    return switch (dimensions) {
-        2 => extern struct {
-            x: Scalar,
-            y: Scalar,
-            pub usingnamespace mixin(@This());
-        },
-        3 => extern struct {
-            x: Scalar,
-            y: Scalar,
-            z: Scalar,
-            pub usingnamespace mixin(@This());
-        },
-        4 => extern struct {
-            x: Scalar,
-            y: Scalar,
-            z: Scalar,
-            w: Scalar,
-            pub usingnamespace mixin(@This());
-        },
-        else => errorDimensionCountUnsupported(dimensions),
-    };
+pub fn isVector(comptime vector_type: type) bool {
+    if (@typeInfo(vector_type) == .Struct) {
+        if (@hasDecl(vector_type, "Scalar") and @TypeOf(vector_type.Scalar) == type) {
+            if (@hasDecl(vector_type, "dimensions") and @TypeOf(vector_type.dimensions) == usize) {
+                const Scalar = vector_type.Scalar;
+                const dimensions = vector_type.dimensions;
+                if (meta.scalarInfo(Scalar) == .valid and isDimensionCountSupported(dimensions)) {
+                    return vector_type == Vector(Scalar, dimensions);
+                }
+            }
+        }
+    }
+    return false;
 }
+
+pub fn assertIsVector(comptime vector_type: type) void {
+    if (!isVector(vector_type)) {
+        errorUnexpectedType(vector_type, "vector", .{});
+    }
+}
+
 
 pub const types = struct {
 

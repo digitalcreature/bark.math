@@ -1,9 +1,8 @@
 
 const std = @import("std");
-const fmt = std.fmt;
 
 pub fn compileError(comptime format: []const u8, args: anytype) noreturn {
-    const msg = comptime fmt.comptimePrint(format, args);
+    const msg = comptime std.fmt.comptimePrint(format, args);
     @compileError(msg);
 }
 
